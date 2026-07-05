@@ -1,0 +1,37 @@
+"""Walk-forward selection checks.
+
+With a single candidate there is nothing to select, so the stitched OOS backtest
+must equal a plain backtest of that candidate on the same dates. That pins down the
+plumbing. We also check selections are recorded and the OOS window is non-empty.
+"""
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from taa.construction.policy import PolicyPortfolio
+from taa.data.synthetic import make_synthetic_prices, DEFAULT_ASSETS
+from taa.backtest.engine import run_backtest
+from taa.signals.momentum import AbsoluteMomentum
+from taa.evaluation.robustness import walk_forward_select
+
+POLICY = PolicyPortfolio({a: 1.0 for a in DEFAULT_ASSETS})
+PRICES = make_synthetic_prices()
+
+
+def test_single_candidate_matches_plain_backtest():
+    wf = walk_forward_select(PRICES, AbsoluteMomentum, POLICY, [12],
+                             min_train=60, step=12, cost_bps=10.0, warmup=12)
+    plain = run_backtest(PRICES, AbsoluteMomentum(12), POLICY, cost_bps=10.0, warmup=12)
+    s_wf, _ = wf.oos_returns()
+    s_plain = plain.strat_returns.loc[wf.oos_start:]
+    pd.testing.assert_series_equal(s_wf, s_plain)
+
+
+def test_multi_candidate_runs_and_selects():
+    wf = walk_forward_select(PRICES, AbsoluteMomentum, POLICY, [3, 6, 12, 18],
+                             min_train=60, step=12, cost_bps=10.0, warmup=12)
+    assert len(wf.selections) > 0
+    assert set(wf.selections["chosen"]).issubset({3, 6, 12, 18})
+    strat, pol = wf.oos_returns()
+    assert len(strat) > 0 and len(strat) == len(pol)

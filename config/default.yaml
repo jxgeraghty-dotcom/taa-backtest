@@ -1,0 +1,70 @@
+# Default backtest configuration. Every choice here is a decision you must be able
+# to defend. Change nothing silently; if you change it, note it in the research note.
+
+universe: [EQ_US, EQ_INTL, GOVT, CREDIT, TIPS, CMDTY, CASH]
+
+# Strategic policy portfolio (the benchmark the overlay is judged against).
+# A plain 60/40-ish multi-asset policy. Renormalized automatically.
+policy:
+  EQ_US: 0.35
+  EQ_INTL: 0.15
+  GOVT: 0.20
+  CREDIT: 0.10
+  TIPS: 0.05
+  CMDTY: 0.05
+  CASH: 0.10
+
+# Pre-committed headline signal. Do not tune this after seeing results.
+signal:
+  type: abs_mom     # abs_mom | trend_ma | value | carry | macro | composite
+  lookback: 12
+
+# The pre-committed multi-signal set, compared head-to-head. All fixed before testing;
+# the composite is an EQUAL-weight blend of the four families (no weight tuning).
+#   abs_mom   : time-series / cross-asset momentum (Moskowitz-Ooi-Pedersen 2012)
+#   value     : 5y long-horizon reversal (Asness-Moskowitz-Pedersen 2013)
+#   carry     : yield/spread level per sleeve (fixed income / credit / cash)
+#   macro     : curve-slope nowcast mapped to a fixed asset-response vector
+signal_set:
+  - {type: abs_mom, lookback: 12}
+  - {type: value, lookback: 60}
+  - {type: carry, mode: level}
+  - {type: macro, window: 6}
+  - {type: composite}
+
+# Overlay construction and costs.
+construction:
+  max_tilt: 0.10        # per-sleeve deviation cap from policy
+  scale: 0.05           # tilt aggressiveness on the z-scored signal
+  max_turnover: 0.20    # cap one-way monthly turnover (null to disable the cap)
+  no_trade_band: 0.02   # skip a rebalance whose one-way turnover is below this
+
+costs:
+  cost_bps: 10.0        # headline cost assumption (one-way)
+  sensitivity_bps: [0.0, 5.0, 15.0]   # always report the whole grid
+  turnover_grid: [null, 0.30, 0.20, 0.10]   # report IR across turnover caps (null = uncapped)
+
+backtest:
+  warmup: 12
+
+# Black-Litterman construction. Every one of these is a free parameter and therefore
+# overfitting surface. Do not tune them to the backtest and then report the winner.
+black_litterman:
+  tau: 0.05
+  delta: 3.0
+  view_scale: 0.5
+  view_conf: 0.5
+  cov_lookback: 36
+  shrink: 0.2
+  max_tilt: 0.10
+
+# Expanding-window out-of-sample parameter selection.
+walk_forward:
+  candidate_lookbacks: [3, 6, 9, 12, 15, 18, 24]
+  min_train: 60      # months of history before the first selection
+  step: 12           # months each selected parameter is held before re-selecting
+  objective: ir      # ir (active vs policy) | sharpe (of the strategy)
+
+# Real-data run (used by loaders, not the offline demo). ETF proxies start ~2007.
+data:
+  start: "2007-01-01"
