@@ -42,10 +42,10 @@ limitations** — a methods showcase, not a vanity Sharpe.
   dated positioning read.
 - **Git:** local repo at `taa-backtest/`, branch `main`, working tree clean, identity
   `jxgeraghty <jxgeraghty@gmail.com>`. **Pushed to GitHub (2026-07-06):**
-  `https://github.com/jxgeraghty-dotcom/taa-backtest-` (note the trailing hyphen in
-  the repo name — a creation typo; renaming it on GitHub keeps redirects). The repo is
-  currently **public**. Auth: fine-grained PAT in `../TAA Backest GH Token.txt`
-  (outside the repo, never committed; not stored in git config).
+  `https://github.com/jxgeraghty-dotcom/taa-backtest` (created as `taa-backtest-`,
+  renamed same day; GitHub redirects the old name). The repo is currently **public**.
+  Auth: fine-grained PAT in `../TAA Backest GH Token.txt` (outside the repo, never
+  committed; not stored in git config).
 
 ## Key decisions (and why)
 - **Judge on IR over policy, net of costs** — not total return, which is mostly policy
@@ -71,8 +71,8 @@ limitations** — a methods showcase, not a vanity Sharpe.
   plus disclosure of the two data/code artifacts caught along the way.
 
 ## Open questions / unresolved
-- **Repo name and visibility:** the GitHub repo is `taa-backtest-` (trailing-hyphen
-  typo) and currently public — decide whether to rename and/or make private.
+- **Repo visibility:** the GitHub repo is currently public — decide whether that is
+  intended or it should be made private.
 - **Commit author name:** currently `jxgeraghty` (derived from email) — keep or change to
   a real name (would need `--amend --reset-author`).
 - **Data length:** the ~2007–2026 ETF sample is too short/peculiar for strong claims;
