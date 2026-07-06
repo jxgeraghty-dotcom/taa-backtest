@@ -3,13 +3,6 @@
 A methods scaffold for researching a tactical asset allocation overlay on a
 strategic multi-asset policy portfolio. Built to test honestly, not to win.
 
-> Read this first. A clean trend or dual-momentum backtest with a 1.2 Sharpe is the
-> most common vanity project in this corner of the industry, and anyone on a TAA
-> desk has seen hundreds. The framework itself impresses no one. What reads as
-> credible is the rigor scaffolding around it and the willingness to conclude that
-> the overlay adds something modest and regime-dependent net of costs. Build for
-> that conclusion. If your writeup says "I beat the market," you invite a takedown.
-
 ## Quick start (offline, no network)
 
 ```bash
