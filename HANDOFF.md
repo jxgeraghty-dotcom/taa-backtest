@@ -40,11 +40,12 @@ limitations** — a methods showcase, not a vanity Sharpe.
   GOVT +8.0% / CREDIT +2.8%, UW EQ_US −8.7%.
 - **Research note written** with two figures ([notes/figures/](notes/figures/)) and a
   dated positioning read.
-- **Git:** local repo at `taa-backtest/`, branch `main`, **2 commits**, working tree
-  clean. Identity set locally to `jxgeraghty <jxgeraghty@gmail.com>`.
-- **Push in progress (blocked on auth).** GitHub repo created empty at
-  `https://github.com/jxgeraghty-dotcom/taa-backtest`. No remote/token/`gh`/SSH key on
-  this machine yet — waiting on a fine-grained PAT (Contents: write) to push `main`.
+- **Git:** local repo at `taa-backtest/`, branch `main`, working tree clean, identity
+  `jxgeraghty <jxgeraghty@gmail.com>`. **Pushed to GitHub (2026-07-06):**
+  `https://github.com/jxgeraghty-dotcom/taa-backtest-` (note the trailing hyphen in
+  the repo name — a creation typo; renaming it on GitHub keeps redirects). The repo is
+  currently **public**. Auth: fine-grained PAT in `../TAA Backest GH Token.txt`
+  (outside the repo, never committed; not stored in git config).
 
 ## Key decisions (and why)
 - **Judge on IR over policy, net of costs** — not total return, which is mostly policy
@@ -70,8 +71,8 @@ limitations** — a methods showcase, not a vanity Sharpe.
   plus disclosure of the two data/code artifacts caught along the way.
 
 ## Open questions / unresolved
-- **Push:** provide a fine-grained PAT (repo `taa-backtest`, Contents: Read and write) in
-  `gh_token.txt`, then push `main`. Decide **repo public vs private**.
+- **Repo name and visibility:** the GitHub repo is `taa-backtest-` (trailing-hyphen
+  typo) and currently public — decide whether to rename and/or make private.
 - **Commit author name:** currently `jxgeraghty` (derived from email) — keep or change to
   a real name (would need `--amend --reset-author`).
 - **Data length:** the ~2007–2026 ETF sample is too short/peculiar for strong claims;
