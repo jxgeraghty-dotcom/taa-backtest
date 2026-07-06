@@ -11,10 +11,14 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
-# Cached real-data snapshots and scratch run outputs (regenerate with --real)
+# Cached real-data snapshots and scratch run outputs (regenerate with --real).
+# Snapshots hold raw vendor price/yield data — keep the mechanism, not the data.
+# NOTE: anchored to the repo root so it does NOT match the taa/data/ package.
 *.pkl
 *_out.txt
 *_err.txt
+final_tests.txt
+/data/
 
 # OS / editor
 .DS_Store

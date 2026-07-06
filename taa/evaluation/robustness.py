@@ -88,6 +88,51 @@ def deflated_sharpe(returns: pd.Series, n_trials: int = 1) -> dict:
     return {"sr_obs": float(sr), "sr_deflated_benchmark": float(sr_star), "dsr": float(dsr)}
 
 
+def reality_check(prices, signal_cls, policy, candidate_params, block: int = 6,
+                  n_boot: int = 1000, seed: int = 7, **bt_kwargs) -> dict:
+    """White's Reality Check p-value for the best lookback (data-snooping adjusted).
+
+    The walk-forward's tempting OOS number rides a lookback picked from a grid, so its
+    naive t-stat overstates significance. This bootstraps the null that NO candidate has
+    skill: it studentizes each candidate's active-return mean, takes the max across
+    candidates as the statistic, then circular-block-bootstraps the DEMEANED returns to
+    build the null distribution of that max (White 2000). The p-value is the share of
+    bootstrap maxima that beat the observed one. A large p-value means the best lookback's
+    edge is explainable by having searched several. Autocorrelation is respected via the
+    block length.
+    """
+    active = {}
+    for p in candidate_params:
+        res = run_backtest(prices, signal_cls(p), policy, **bt_kwargs)
+        active[p] = res.active_returns
+    A = pd.DataFrame(active).dropna()
+    T, k = A.shape
+    if T < block * 2 or k < 1:
+        return {"best_param": None, "max_stat": np.nan, "reality_check_pvalue": np.nan, "n_candidates": k}
+
+    scale = np.sqrt(T)
+    mu = A.mean().to_numpy()
+    sd = A.std(ddof=1).to_numpy()
+    stat = np.where(sd > 0, scale * mu / sd, -np.inf)
+    obs_max = float(np.max(stat))
+    best = list(A.columns)[int(np.argmax(stat))]
+
+    demeaned = (A - A.mean()).to_numpy()      # impose the no-skill null
+    rng = np.random.default_rng(seed)
+    n_blocks = int(np.ceil(T / block))
+    boot_max = np.empty(n_boot)
+    for b in range(n_boot):
+        starts = rng.integers(0, T, size=n_blocks)
+        idx = np.concatenate([(np.arange(s, s + block) % T) for s in starts])[:T]
+        samp = demeaned[idx]
+        bmu = samp.mean(axis=0)
+        bsd = samp.std(axis=0, ddof=1)
+        bstat = np.where(bsd > 0, scale * bmu / bsd, -np.inf)
+        boot_max[b] = np.max(bstat)
+    pval = float(np.mean(boot_max >= obs_max))
+    return {"best_param": best, "max_stat": obs_max, "reality_check_pvalue": pval, "n_candidates": k}
+
+
 def random_tilt_null(prices, policy, actual_ir, n_sims: int = 200, seed: int = 5, **bt_kwargs) -> dict:
     """Turnover-matched random overlay. If random tilts match your IR, you have none.
 

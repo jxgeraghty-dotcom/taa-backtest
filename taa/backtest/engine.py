@@ -72,6 +72,7 @@ def run_backtest(
     constructor=None,
     max_turnover: float | None = None,
     no_trade_band: float = 0.0,
+    rebalance_every: int = 1,
 ) -> BacktestResult:
     """Run the overlay backtest.
 
@@ -84,8 +85,13 @@ def run_backtest(
     Pass a BlackLitterman instance to swap in constrained mean-variance construction;
     max_tilt/scale are then ignored (the constructor owns those choices).
 
+    cost_bps: a scalar (same cost per sleeve) or a per-sleeve pd.Series.
+
     max_turnover / no_trade_band: optional turnover governors (see module docstring).
-    Off by default, so the plain backtest is unaffected.
+
+    rebalance_every: rebalance the overlay (and the policy benchmark) only every k
+    months; hold and drift in between. k=1 is monthly (unchanged). Quarterly (k=3)
+    cuts turnover, which matters because much monthly turnover is uncompensated.
     """
     if constructor is None:
         constructor = SimpleTilt(max_tilt=max_tilt, scale=scale)
@@ -107,11 +113,16 @@ def run_backtest(
         t = dates[i]
         t_next = dates[i + 1]
         nxt_ret = (prices.history(t_next).iloc[-1] / prices.history(t).iloc[-1] - 1.0)
+        do_rebalance = ((i - warmup) % rebalance_every == 0)
 
-        # strategy: build target from data through t, apply turnover limits, pay to trade
-        scores = signal.score(bundle, t)
-        target = constructor.weights(scores, pol, prices, t)
-        held = _limit_turnover(target, strat_w, max_turnover, no_trade_band)
+        # strategy: on a rebalance month build the target and trade into it (subject to
+        # the turnover limits); otherwise hold the drifted book and pay nothing.
+        if do_rebalance:
+            scores = signal.score(bundle, t)
+            target = constructor.weights(scores, pol, prices, t)
+            held = _limit_turnover(target, strat_w, max_turnover, no_trade_band)
+        else:
+            held = strat_w
         c = linear_cost(held, strat_w, cost_bps)
         turn[t] = (held - strat_w).abs().sum()      # realized turnover, after the limits
         cost_series[t] = c
@@ -119,10 +130,11 @@ def run_backtest(
         strat_ret[t_next] = float((held * nxt_ret).sum()) - c
         strat_w = _drift(held, nxt_ret)
 
-        # policy benchmark: same loop, rebalanced to fixed weights, same cost model
-        pc = linear_cost(pol, pol_w, cost_bps)
-        pol_ret[t_next] = float((pol * nxt_ret).sum()) - pc
-        pol_w = _drift(pol, nxt_ret)
+        # policy benchmark: identical loop and cost model, same rebalance schedule
+        pol_held = pol if do_rebalance else pol_w
+        pc = linear_cost(pol_held, pol_w, cost_bps)
+        pol_ret[t_next] = float((pol_held * nxt_ret).sum()) - pc
+        pol_w = _drift(pol_held, nxt_ret)
 
     return BacktestResult(
         strat_returns=pd.Series(strat_ret).sort_index(),

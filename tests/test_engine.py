@@ -61,6 +61,25 @@ def test_no_trade_band_skips_small_rebalances():
     assert (traded >= band - 1e-9).all()
 
 
+def test_quarterly_rebalance_cuts_turnover():
+    prices = make_synthetic_prices()
+    monthly = run_backtest(prices, AbsoluteMomentum(12), _equal_policy(),
+                           scale=0.1, cost_bps=10, rebalance_every=1)
+    quarterly = run_backtest(prices, AbsoluteMomentum(12), _equal_policy(),
+                             scale=0.1, cost_bps=10, rebalance_every=3)
+    assert quarterly.turnover.mean() < monthly.turnover.mean()
+    assert (quarterly.turnover < 1e-12).sum() > 0, "non-rebalance months should not trade"
+    assert len(quarterly.strat_returns) == len(monthly.strat_returns)
+
+
+def test_per_sleeve_costs_run():
+    import pandas as pd
+    prices = make_synthetic_prices()
+    bps = pd.Series({a: (15.0 if a in ("CREDIT", "CMDTY") else 3.0) for a in DEFAULT_ASSETS})
+    res = run_backtest(prices, AbsoluteMomentum(12), _equal_policy(), scale=0.1, cost_bps=bps)
+    assert (res.costs >= 0).all() and res.costs.sum() > 0
+
+
 def test_weights_valid_under_limits():
     prices = make_synthetic_prices()
     res = run_backtest(prices, AbsoluteMomentum(12), _equal_policy(),

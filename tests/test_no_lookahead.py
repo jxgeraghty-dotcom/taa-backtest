@@ -68,15 +68,14 @@ as_of_dates = [_bundle.dates[i] for i in (24, 60, 120, 200)]
 
 @pytest.mark.parametrize("signal", signals_under_test, ids=lambda s: s.name)
 @pytest.mark.parametrize("as_of", as_of_dates, ids=lambda d: str(d.date()))
-def test_signal_ignores_future(signal, as_of):
-    bundle = make_synthetic_bundle()
-    baseline = signal.score(bundle, as_of)
-    poisoned = signal.score(_poison_bundle(bundle, as_of), as_of)
+def test_signal_ignores_future(signal, as_of, synthetic_bundle):
+    baseline = signal.score(synthetic_bundle, as_of)
+    poisoned = signal.score(_poison_bundle(synthetic_bundle, as_of), as_of)
     pd.testing.assert_series_equal(baseline, poisoned)
 
 
-def test_history_never_returns_future():
-    bundle = make_synthetic_bundle()
+def test_history_never_returns_future(synthetic_bundle):
+    bundle = synthetic_bundle
     as_of = bundle.dates[100]
     for source in (bundle.prices, bundle.carry):
         assert source.history(as_of).index.max() <= as_of

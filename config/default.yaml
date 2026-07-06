@@ -38,14 +38,26 @@ construction:
   scale: 0.05           # tilt aggressiveness on the z-scored signal
   max_turnover: 0.20    # cap one-way monthly turnover (null to disable the cap)
   no_trade_band: 0.02   # skip a rebalance whose one-way turnover is below this
+  vol_scale: false      # scale tilts by inverse sleeve vol (risk-equalized tilts)
 
 costs:
   cost_bps: 10.0        # headline cost assumption (one-way)
   sensitivity_bps: [0.0, 5.0, 15.0]   # always report the whole grid
   turnover_grid: [null, 0.30, 0.20, 0.10]   # report IR across turnover caps (null = uncapped)
+  # Illustrative per-sleeve one-way costs (bps): HY/commodities trade dearer than
+  # Treasuries/cash. Used for the per-sleeve-cost comparison in the run script.
+  per_sleeve_bps:
+    EQ_US: 3.0
+    EQ_INTL: 5.0
+    GOVT: 3.0
+    CREDIT: 15.0
+    TIPS: 5.0
+    CMDTY: 12.0
+    CASH: 1.0
 
 backtest:
   warmup: 12
+  rebalance_every: 1    # months between rebalances (1 = monthly, 3 = quarterly)
 
 # Black-Litterman construction. Every one of these is a free parameter and therefore
 # overfitting surface. Do not tune them to the backtest and then report the winner.

@@ -5,6 +5,7 @@ from .robustness import (
     block_bootstrap_ir,
     deflated_sharpe,
     random_tilt_null,
+    reality_check,
     walk_forward_select,
     WalkForwardResult,
 )

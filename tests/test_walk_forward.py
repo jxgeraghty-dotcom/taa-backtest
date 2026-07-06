@@ -13,7 +13,7 @@ from taa.construction.policy import PolicyPortfolio
 from taa.data.synthetic import make_synthetic_prices, DEFAULT_ASSETS
 from taa.backtest.engine import run_backtest
 from taa.signals.momentum import AbsoluteMomentum
-from taa.evaluation.robustness import walk_forward_select
+from taa.evaluation.robustness import walk_forward_select, reality_check
 
 POLICY = PolicyPortfolio({a: 1.0 for a in DEFAULT_ASSETS})
 PRICES = make_synthetic_prices()
@@ -35,3 +35,11 @@ def test_multi_candidate_runs_and_selects():
     assert set(wf.selections["chosen"]).issubset({3, 6, 12, 18})
     strat, pol = wf.oos_returns()
     assert len(strat) > 0 and len(strat) == len(pol)
+
+
+def test_reality_check_returns_valid_pvalue():
+    rc = reality_check(PRICES, AbsoluteMomentum, POLICY, [3, 6, 12, 18],
+                       block=6, n_boot=200, cost_bps=10.0, warmup=12)
+    assert rc["best_param"] in {3, 6, 12, 18}
+    assert 0.0 <= rc["reality_check_pvalue"] <= 1.0
+    assert rc["n_candidates"] == 4

@@ -83,6 +83,14 @@ notes/          research_note.md (finished, real-data deliverable) + the templat
   rebalance toward target) and a no-trade band sit between the constructor and the
   book. Realized turnover/cost are reported after the limits bind, and the run shows
   IR across a grid of caps so you can see where the limit starts to cost you edge.
+- Realism knobs, all reported as comparisons rather than baked into one number:
+  configurable rebalance frequency (monthly vs quarterly), per-sleeve transaction
+  costs (HY/commodities dearer than Treasuries/cash), and optional vol-scaled tilts
+  (risk-equalized rather than weight-equalized).
+- Multiple testing is priced: a White Reality-Check p-value puts an honest number on
+  the walk-forward's best-lookback, since a grid search inflates naive significance.
+- Reproducibility: `--snapshot-save/--snapshot-load` freeze a dated data vintage to
+  CSV so a note's numbers regenerate exactly, instead of drifting with each live pull.
 - Robustness (bootstrap CI, deflated Sharpe, random-tilt null, parameter
   sensitivity) is treated as the main result, because with ~220 points an IR gap of
   0.2 is not statistically distinguishable.
@@ -121,10 +129,13 @@ does not make a short sample long.
 ## The finished deliverable
 
 `notes/research_note.md` is the two-page note written against a real-data run
-(2007–2026 ETF proxies + FRED yields), ending in a dated positioning recommendation
-with honest limitations. The headline is the intended one: a disciplined multi-signal
-overlay adds a small, regime-dependent tilt whose IR cannot be statistically
-distinguished from zero on this sample, so it is sized as a lean, not a call.
+(2007–2026 ETF proxies + FRED yields), with two figures (`notes/figures/`) and a dated
+positioning recommendation. Regenerate the figures with
+`python scripts/make_figures.py --snapshot data/snapshot_2026-07`. The headline is the
+intended one: a disciplined multi-signal overlay adds a small, regime-dependent tilt
+whose IR cannot be statistically distinguished from zero on this sample, so it is sized
+as a lean, not a call — and two data/code artifacts that would have flattered the
+result were caught and disclosed along the way.
 
 ## Still left for you
 

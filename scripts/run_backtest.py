@@ -41,6 +41,7 @@ from taa.evaluation.robustness import (
     block_bootstrap_ir,
     deflated_sharpe,
     random_tilt_null,
+    reality_check,
     walk_forward_select,
 )
 
@@ -50,8 +51,11 @@ def load_config(path):
         return yaml.safe_load(f)
 
 
-def get_data(cfg, real):
-    if real:
+def get_data(cfg, args):
+    if args.snapshot_load:
+        from taa.data.snapshot import load_snapshot
+        return load_snapshot(args.snapshot_load)
+    if args.real:
         from taa.data.loaders import load_bundle
         return load_bundle(start=cfg["data"]["start"])
     from taa.data.synthetic import make_synthetic_bundle
@@ -62,21 +66,28 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=os.path.join(os.path.dirname(__file__), "..", "config", "default.yaml"))
     ap.add_argument("--real", action="store_true", help="use real ETF/FRED data (needs network)")
+    ap.add_argument("--snapshot-load", default=None, help="load a saved data snapshot dir instead of pulling")
+    ap.add_argument("--snapshot-save", default=None, help="save the loaded bundle to this snapshot dir")
     args = ap.parse_args()
 
     pd.set_option("display.float_format", lambda x: f"{x:0.4f}")
     cfg = load_config(args.config)
 
-    data = get_data(cfg, args.real)
+    data = get_data(cfg, args)
+    if args.snapshot_save:
+        from taa.data.snapshot import save_snapshot
+        save_snapshot(data, args.snapshot_save)
+        print(f"[snapshot] saved bundle to {args.snapshot_save}")
     policy = PolicyPortfolio(cfg["policy"])
     pol = policy.target(data.assets)
     con, cost, bt = cfg["construction"], cfg["costs"], cfg["backtest"]
 
-    # Common backtest kwargs: construction, costs, and the turnover governors.
+    # Common backtest kwargs: construction, costs, turnover governors, rebalance schedule.
     bt_kwargs = dict(
         max_tilt=con["max_tilt"], scale=con["scale"],
         cost_bps=cost["cost_bps"], warmup=bt["warmup"],
         max_turnover=con.get("max_turnover"), no_trade_band=con.get("no_trade_band", 0.0),
+        rebalance_every=bt.get("rebalance_every", 1),
     )
 
     kind = "REAL (ETF/FRED)" if args.real else "SYNTHETIC (machinery only)"
@@ -126,6 +137,38 @@ def main():
         }
     print(pd.DataFrame(tgrid).T.rename_axis("max_turnover"))
 
+    print("\n=== REBALANCE FREQUENCY (composite IR vs policy) ===")
+    fgrid = {}
+    for k in (1, 3):
+        kw = {**bt_kwargs, "rebalance_every": k}
+        r = run_backtest(data, composite, policy, **kw)
+        fgrid[f"every_{k}m"] = {
+            "IR_vs_policy": information_ratio(r.strat_returns, r.policy_returns),
+            "ann_turnover": r.turnover.mean() * 12,
+        }
+    print(pd.DataFrame(fgrid).T)
+
+    print("\n=== PER-SLEEVE vs FLAT COSTS (composite IR vs policy) ===")
+    per_sleeve = pd.Series(cost["per_sleeve_bps"]).reindex(data.assets)
+    r_flat = run_backtest(data, composite, policy, **bt_kwargs)
+    r_ps = run_backtest(data, composite, policy, **{**bt_kwargs, "cost_bps": per_sleeve})
+    print(pd.Series({
+        f"flat_{cost['cost_bps']}bps": information_ratio(r_flat.strat_returns, r_flat.policy_returns),
+        "per_sleeve": information_ratio(r_ps.strat_returns, r_ps.policy_returns),
+    }, name="IR"))
+
+    print("\n=== VOL-SCALED vs PLAIN TILT (composite IR vs policy) ===")
+    r_plain = run_backtest(data, composite, policy, **bt_kwargs)
+    vs = SimpleTilt(max_tilt=con["max_tilt"], scale=con["scale"], vol_scale=True)
+    r_vs = run_backtest(data, composite, policy, constructor=vs,
+                        cost_bps=cost["cost_bps"], warmup=bt["warmup"],
+                        max_turnover=con.get("max_turnover"), no_trade_band=con.get("no_trade_band", 0.0),
+                        rebalance_every=bt.get("rebalance_every", 1))
+    print(pd.Series({
+        "plain_tilt": information_ratio(r_plain.strat_returns, r_plain.policy_returns),
+        "vol_scaled": information_ratio(r_vs.strat_returns, r_vs.policy_returns),
+    }, name="IR"))
+
     print("\n=== REGIME TABLE (composite) ===")
     print(regime_table(res, REAL_REGIMES if args.real else DEFAULT_REGIMES))
 
@@ -162,6 +205,9 @@ def main():
     s_ret, p_ret = wf_res.oos_returns()
     print("OOS IR, walk-forward selected:", round(information_ratio(s_ret, p_ret), 4))
     print("Gap between best in-sample and OOS is the honest cost of parameter selection.")
+    rc = reality_check(data, AbsoluteMomentum, policy, wf["candidate_lookbacks"], **bt_kwargs)
+    print(f"Reality-check p-value for best lookback (lb={rc['best_param']}, {rc['n_candidates']} tried): "
+          f"{rc['reality_check_pvalue']:.3f}  (high = the best lookback is explainable by the search)")
 
     # --- Current positioning tilt implied by the composite on the latest data ---
     last = data.dates[-1]

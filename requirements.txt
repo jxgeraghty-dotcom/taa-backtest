@@ -6,3 +6,5 @@ pytest>=7.0
 # Real-data path only (not needed for the offline demo or tests):
 # yfinance>=0.2
 # pandas-datareader>=0.10
+# Figures for the research note (scripts/make_figures.py):
+# matplotlib>=3.7
