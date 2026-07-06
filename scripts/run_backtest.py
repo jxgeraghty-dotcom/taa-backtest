@@ -90,7 +90,10 @@ def main():
         rebalance_every=bt.get("rebalance_every", 1),
     )
 
-    kind = "REAL (ETF/FRED)" if args.real else "SYNTHETIC (machinery only)"
+    # A loaded snapshot IS real data (a frozen vintage), not the synthetic demo.
+    is_real = args.real or bool(args.snapshot_load)
+    kind = ("REAL (ETF/FRED, frozen snapshot)" if args.snapshot_load
+            else "REAL (ETF/FRED)" if args.real else "SYNTHETIC (machinery only)")
     print(f"\nData: {kind}. Turnover cap={bt_kwargs['max_turnover']}, "
           f"no-trade band={bt_kwargs['no_trade_band']}, cost={cost['cost_bps']}bps one-way.")
 
@@ -170,7 +173,7 @@ def main():
     }, name="IR"))
 
     print("\n=== REGIME TABLE (composite) ===")
-    print(regime_table(res, REAL_REGIMES if args.real else DEFAULT_REGIMES))
+    print(regime_table(res, REAL_REGIMES if is_real else DEFAULT_REGIMES))
 
     print("\n=== BOOTSTRAP CI ON IR (composite) ===")
     print(block_bootstrap_ir(res.active_returns))
@@ -219,7 +222,7 @@ def main():
     tbl = pd.DataFrame({"policy": pol, "target": target, "active_tilt": target - pol}).loc[active.index]
     print(tbl.round(4))
 
-    if not args.real:
+    if not is_real:
         print("\nReminder: synthetic data proves the machinery only. Every number above is")
         print("random by construction. Run with --real for an actual positioning read, and")
         print("expect the OOS IR to sit well below the best in-sample IR.")

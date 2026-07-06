@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from taa.construction.policy import PolicyPortfolio
+from taa.data.panel import PriceHistory
 from taa.data.synthetic import make_synthetic_prices, DEFAULT_ASSETS
 from taa.backtest.engine import run_backtest
 from taa.signals.momentum import AbsoluteMomentum
@@ -70,6 +72,30 @@ def test_quarterly_rebalance_cuts_turnover():
     assert quarterly.turnover.mean() < monthly.turnover.mean()
     assert (quarterly.turnover < 1e-12).sum() > 0, "non-rebalance months should not trade"
     assert len(quarterly.strat_returns) == len(monthly.strat_returns)
+
+
+def test_zero_tilt_matches_policy_under_governors():
+    """The turnover governors apply to BOTH legs. With a zero tilt the strategy target
+    is the policy itself, so if the governors were asymmetric (policy forced to churn
+    drift corrections the strategy may skip) the two return streams would diverge."""
+    prices = make_synthetic_prices()
+    res = run_backtest(prices, AbsoluteMomentum(12), _equal_policy(), scale=0.0,
+                       cost_bps=10.0, max_turnover=0.05, no_trade_band=0.03)
+    diff = (res.strat_returns - res.policy_returns).abs().max()
+    assert diff < 1e-10
+
+
+def test_nan_price_raises_loudly():
+    """A NaN next-period return must raise, not silently drop the sleeve from the book
+    (pandas .sum() would skip it while its weight is still held)."""
+    prices = make_synthetic_prices()
+    df = prices.raw_copy()
+    df.iloc[:20, 0] = np.nan                      # asset with a late inception
+    with pytest.raises(ValueError, match="NaN return"):
+        run_backtest(PriceHistory(df), AbsoluteMomentum(12), _equal_policy(), warmup=12)
+    # a warmup past the asset's first valid date clears it
+    res = run_backtest(PriceHistory(df), AbsoluteMomentum(12), _equal_policy(), warmup=24)
+    assert len(res.strat_returns) > 0
 
 
 def test_per_sleeve_costs_run():

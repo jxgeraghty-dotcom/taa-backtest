@@ -81,8 +81,10 @@ notes/          research_note.md (finished, real-data deliverable) + the templat
   They are compared head-to-head on IR net of costs; the weights are not tuned.
 - Turnover is governed, not just costed: a per-rebalance turnover cap (partial
   rebalance toward target) and a no-trade band sit between the constructor and the
-  book. Realized turnover/cost are reported after the limits bind, and the run shows
-  IR across a grid of caps so you can see where the limit starts to cost you edge.
+  book — applied to the strategy and the policy benchmark alike, so neither leg is
+  forced to churn frictions the other may skip. Realized turnover/cost are reported
+  after the limits bind, and the run shows IR across a grid of caps so you can see
+  where the limit starts to cost you edge.
 - Realism knobs, all reported as comparisons rather than baked into one number:
   configurable rebalance frequency (monthly vs quarterly), per-sleeve transaction
   costs (HY/commodities dearer than Treasuries/cash), and optional vol-scaled tilts
@@ -134,8 +136,11 @@ positioning recommendation. Regenerate the figures with
 `python scripts/make_figures.py --snapshot data/snapshot_2026-07`. The headline is the
 intended one: a disciplined multi-signal overlay adds a small, regime-dependent tilt
 whose IR cannot be statistically distinguished from zero on this sample, so it is sized
-as a lean, not a call — and two data/code artifacts that would have flattered the
-result were caught and disclosed along the way.
+as a lean, not a call — and four data/code artifacts that would have flattered or
+distorted the result were caught and disclosed along the way (the worst: the ETF loader
+once assigned sleeve names to yfinance columns positionally while yfinance returns them
+alphabetically, scrambling the whole universe — now fixed with a by-ticker rename and a
+regression test).
 
 ## Still left for you
 

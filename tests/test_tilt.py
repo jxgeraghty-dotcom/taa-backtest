@@ -30,6 +30,18 @@ def test_all_nan_scores_return_policy():
     assert np.allclose(w.reindex(POLICY.index).values, POLICY.values, atol=1e-9)
 
 
+def test_funding_sleeve_respects_mandate_cap():
+    """One huge outlier score makes the per-sleeve clips leave a large residual, which
+    the funding sleeve used to absorb unbounded (CASH ended near 0.45 weight here).
+    With the cap applied to funding too, its post-renormalization weight stays close
+    to policy + max_tilt (0.25 in this construction, vs 0.4545 uncapped)."""
+    scores = pd.Series({"EQ_US": 10.0, "EQ_INTL": 0.0, "GOVT": 0.0,
+                        "CREDIT": 0.0, "TIPS": 0.0, "CMDTY": 0.0, "CASH": 0.0})
+    w = score_to_weights(scores, POLICY, max_tilt=0.10, scale=0.5)
+    assert abs(w.sum() - 1.0) < 1e-9 and (w >= -1e-9).all()
+    assert w["CASH"] <= 0.26
+
+
 def test_vol_scaling_shrinks_high_vol_tilts():
     prices = make_synthetic_prices()
     as_of = prices.dates[120]

@@ -58,14 +58,31 @@ EQUITY_CARRY_SLEEVES = ("EQ_US", "EQ_INTL")
 COMMODITY_SPOT_TICKER = "^SPGSCI"   # S&P GSCI commodity benchmark (long free history)
 
 
+def rename_ticker_columns(frame: pd.DataFrame, tickers: dict[str, str]) -> pd.DataFrame:
+    """Rename a ticker-columned frame to sleeve names BY TICKER, never positionally.
+
+    yfinance orders multi-ticker columns its own way (alphabetically, not in request
+    order), so positional assignment scrambles the sleeve labels — CASH gets VTI's
+    prices and the whole backtest runs on a mislabeled universe. Match on the ticker
+    symbol and refuse to guess if one is missing.
+    """
+    missing = [t for t in tickers.values() if t not in frame.columns]
+    if missing:
+        raise ValueError(f"tickers missing from downloaded columns: {missing} "
+                         f"(got {list(frame.columns)})")
+    inv = {v: k for k, v in tickers.items()}
+    return frame[list(tickers.values())].rename(columns=inv)
+
+
 def load_etf_prices(tickers: dict[str, str] | None = None, start: str = "2007-01-01") -> PriceHistory:
     """Monthly total-return proxy from yfinance adjusted close. Requires `yfinance`."""
     import yfinance as yf  # local import so the offline path never needs it
 
     tickers = tickers or DEFAULT_ETFS
     raw = yf.download(list(tickers.values()), start=start, auto_adjust=True, progress=False)["Close"]
-    monthly = raw.resample("ME").last()
-    monthly.columns = [k for k, v in tickers.items()]
+    if isinstance(raw, pd.Series):                    # single-ticker download
+        raw = raw.to_frame(list(tickers.values())[0])
+    monthly = rename_ticker_columns(raw.resample("ME").last(), tickers)
     return PriceHistory(monthly.dropna(how="all"))
 
 

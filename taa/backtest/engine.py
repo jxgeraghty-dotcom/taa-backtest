@@ -13,7 +13,10 @@ governors sit between the constructor's target and what actually trades:
   - max_turnover : if the required turnover exceeds the cap, only partially
     rebalance toward the target (a proportional step), which bounds cost drag.
 Both preserve long-only, sum-to-one weights and default to off so the plain backtest
-is unchanged. Realized turnover/cost are reported AFTER these limits apply.
+is unchanged. Realized turnover/cost are reported AFTER these limits apply. The
+governors apply to the POLICY BENCHMARK too: a benchmark forced to churn every tiny
+drift correction the strategy is allowed to skip would pay costs the strategy avoids,
+quietly flattering the overlay's active return.
 """
 from __future__ import annotations
 
@@ -113,6 +116,14 @@ def run_backtest(
         t = dates[i]
         t_next = dates[i + 1]
         nxt_ret = (prices.history(t_next).iloc[-1] / prices.history(t).iloc[-1] - 1.0)
+        if nxt_ret.isna().any():
+            # pandas .sum() would silently skip a NaN sleeve while its weight is still
+            # held, understating the book. Fail loudly instead.
+            bad = list(nxt_ret.index[nxt_ret.isna()])
+            raise ValueError(
+                f"NaN return over ({t.date()} -> {t_next.date()}] for {bad}; "
+                f"increase warmup past those assets' first valid dates or clean the panel"
+            )
         do_rebalance = ((i - warmup) % rebalance_every == 0)
 
         # strategy: on a rebalance month build the target and trade into it (subject to
@@ -130,8 +141,9 @@ def run_backtest(
         strat_ret[t_next] = float((held * nxt_ret).sum()) - c
         strat_w = _drift(held, nxt_ret)
 
-        # policy benchmark: identical loop and cost model, same rebalance schedule
-        pol_held = pol if do_rebalance else pol_w
+        # policy benchmark: identical loop, cost model, rebalance schedule, AND
+        # turnover governors, so the two legs face the same trading frictions
+        pol_held = _limit_turnover(pol, pol_w, max_turnover, no_trade_band) if do_rebalance else pol_w
         pc = linear_cost(pol_held, pol_w, cost_bps)
         pol_ret[t_next] = float((pol_held * nxt_ret).sum()) - pc
         pol_w = _drift(pol_held, nxt_ret)

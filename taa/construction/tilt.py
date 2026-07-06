@@ -13,7 +13,11 @@ black_litterman.py). This is a transparent stand-in:
 A sleeve with a NaN score (a signal that holds no view on it, e.g. carry before
 its trailing window fills) keeps its POLICY weight. It is never dropped, and it
 never causes the remaining sleeves to be silently over-weighted. CASH is the
-funding sleeve and is not tilted on its own signal.
+funding sleeve and is not tilted on its own signal. The mandate cap applies to the
+funding sleeve too: it absorbs the residual the per-sleeve clips leave behind, but
+only up to +/- max_tilt — a "cap" the funding sleeve could blow through would not
+be a cap. When it binds, the final renormalization spreads the small remainder
+proportionally, so weights still sum to one.
 """
 from __future__ import annotations
 
@@ -51,7 +55,8 @@ def score_to_weights(
 
     active = pd.Series(0.0, index=assets)        # no-view sleeves stay at policy (active 0)
     active.loc[tilt.index] = tilt
-    active.loc[funding_sleeve] = -tilt.sum()     # funding sleeve absorbs the offset
+    # funding sleeve absorbs the clip residual, but the mandate cap binds it too
+    active.loc[funding_sleeve] = float(np.clip(-tilt.sum(), -max_tilt, max_tilt))
 
     target = (policy + active).clip(lower=0.0)
     total = target.sum()

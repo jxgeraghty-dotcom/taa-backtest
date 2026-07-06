@@ -16,6 +16,11 @@ import pandas as pd
 def linear_cost(target: pd.Series, drifted: pd.Series, cost_bps) -> float:
     trade = (target - drifted).abs()
     if isinstance(cost_bps, pd.Series):
-        bps = cost_bps.reindex(trade.index).fillna(cost_bps.mean())
+        bps = cost_bps.reindex(trade.index)
+        if bps.isna().any():
+            # refuse to guess a missing sleeve's cost — a silent fill would make the
+            # cost assumption unauditable
+            missing = list(bps.index[bps.isna()])
+            raise ValueError(f"per-sleeve cost_bps has no entry for {missing}")
         return float((trade * bps).sum() / 1e4)
     return float(trade.sum() * cost_bps / 1e4)

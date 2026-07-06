@@ -262,9 +262,12 @@ def walk_forward_select(
         window = active_df.iloc[:k]                   # strictly-past realized returns
         scored = {p: in_sample_metric(window, p) for p in candidate_params}
         best = max(scored, key=scored.get)
-        # the block starting at return-date index k is produced by the rebalance one
-        # step earlier; map to that rebalance date so the engine picks it up in time.
-        reb_date = prices.dates[warmup + k - 1]
+        # Training window iloc[:k] ends with return row k-1, which realizes at
+        # month-end dates[warmup + k]. The first rebalance that may act on the
+        # selection is therefore the one AT dates[warmup + k] (it produces return
+        # row k, the first genuinely out-of-sample one). Deploying one rebalance
+        # earlier would let the selection see the return that rebalance earns.
+        reb_date = prices.dates[warmup + k]
         schedule[reb_date] = best
         selections.append({"boundary": reb_date, "chosen": best, "in_sample_obj": scored[best]})
         k += step

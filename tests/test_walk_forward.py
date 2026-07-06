@@ -37,6 +37,21 @@ def test_multi_candidate_runs_and_selects():
     assert len(strat) > 0 and len(strat) == len(pol)
 
 
+def test_boundaries_deploy_after_training_window():
+    """Training window iloc[:k] ends with the return realized at dates[warmup + k],
+    so the boundary rebalance must sit AT that date, never one earlier — deploying
+    at dates[warmup + k - 1] would let the selection see the very return that
+    rebalance earns (a one-month look-ahead per boundary)."""
+    warmup, min_train, step = 12, 60, 12
+    wf = walk_forward_select(PRICES, AbsoluteMomentum, POLICY, [3, 6, 12, 18],
+                             min_train=min_train, step=step, cost_bps=10.0, warmup=warmup)
+    dates = PRICES.dates
+    ks = [min_train + i * step for i in range(len(wf.selections))]
+    assert list(wf.selections.index) == [dates[warmup + k] for k in ks]
+    # first OOS return is the one that boundary rebalance produces
+    assert wf.oos_start == dates[warmup + min_train + 1]
+
+
 def test_reality_check_returns_valid_pvalue():
     rc = reality_check(PRICES, AbsoluteMomentum, POLICY, [3, 6, 12, 18],
                        block=6, n_boot=200, cost_bps=10.0, warmup=12)
