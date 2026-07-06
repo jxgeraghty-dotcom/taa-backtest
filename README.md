@@ -60,7 +60,7 @@ config/         default.yaml, every default is a decision you must defend
 notes/          research_note.md (finished, real-data deliverable) + the template
 ```
 
-## Design decisions worth defending in an interview
+## Design decisions 
 
 - The benchmark is the strategic policy, not SPY or cash. The overlay is judged on
   information ratio over policy, net of costs. Total return is mostly policy beta.
