@@ -1,6 +1,8 @@
 # Multi-Asset TAA Backtesting Framework
 
 [![CI](https://github.com/jxgeraghty-dotcom/taa-backtest/actions/workflows/ci.yml/badge.svg)](https://github.com/jxgeraghty-dotcom/taa-backtest/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](pyproject.toml)
 
 A methods scaffold for researching a tactical asset allocation overlay on a
 strategic multi-asset policy portfolio. Built to test honestly, not to win.
